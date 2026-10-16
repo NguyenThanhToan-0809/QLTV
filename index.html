@@ -1,0 +1,2075 @@
+<!DOCTYPE html>
+<html lang="vi" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NexusTeam - Quản Lý Công Việc Đội Nhóm</title>
+
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN với cấu hình Dark Mode Class & Bảng màu Slate / Deep Blue -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              200: '#bae6fd',
+              500: '#0ea5e9',
+              600: '#0284c7',
+              700: '#0369a1',
+            },
+            night: {
+              800: '#1e293b',
+              850: '#172033',
+              900: '#0f172a',
+              950: '#0a0f1d',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Canvas Confetti Library (Hiệu ứng pháo bông ăn mừng) -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+
+  <style>
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    .dark ::-webkit-scrollbar-thumb {
+      background: #334155;
+    }
+
+    /* Hiệu ứng mờ dần khi xóa task */
+    .fade-out {
+      opacity: 0;
+      transform: translateY(-8px) scale(0.96);
+      max-height: 0;
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
+      margin-bottom: 0 !important;
+      overflow: hidden;
+      border: none !important;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Animation mở rộng ô nhập */
+    @keyframes expandAnim {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .panel-expand {
+      animation: expandAnim 0.2s ease-out forwards;
+    }
+  </style>
+</head>
+<body class="h-full bg-[#f0f7fb] dark:bg-night-950 text-slate-800 dark:text-slate-100 font-sans antialiased transition-colors duration-200">
+
+  <div class="flex h-screen overflow-hidden">
+
+    <!-- ====================================================================
+         1. SIDEBAR BÊN TRÁI
+         ==================================================================== -->
+    <aside class="w-72 bg-white dark:bg-night-900 border-r border-sky-100 dark:border-slate-800/80 flex flex-col justify-between shrink-0 z-20 shadow-xs">
+      
+      <!-- Top Section -->
+      <div class="p-5 overflow-y-auto">
+        <!-- Logo thương hiệu -->
+        <div class="flex items-center gap-3 pb-5 border-b border-sky-100/80 dark:border-slate-800">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-500 to-brand-600 flex items-center justify-center text-white shadow-md shadow-sky-500/25">
+            <i data-lucide="layers" class="w-5 h-5"></i>
+          </div>
+          <span class="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">Nexus<span class="text-brand-600 dark:text-sky-400">Team</span></span>
+        </div>
+
+        <!-- 1.1 Bộ lọc thông minh (Góc nhìn người dùng) -->
+        <div class="mt-6">
+          <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 px-2 mb-2">Góc nhìn công việc</p>
+          <div class="space-y-1">
+            <button 
+              id="btnViewAll" 
+              onclick="setFilterView('all')" 
+              class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all group"
+            >
+              <div class="flex items-center gap-3">
+                <i data-lucide="layout-grid" class="w-4 h-4 text-slate-400 group-hover:text-brand-600 dark:group-hover:text-sky-400"></i>
+                <span>Tất cả công việc</span>
+              </div>
+              <span id="badgeAll" class="text-xs px-2 py-0.5 rounded-full font-bold bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">0</span>
+            </button>
+
+            <button 
+              id="btnViewMyTasks" 
+              onclick="setFilterView('my-tasks')" 
+              class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all group"
+            >
+              <div class="flex items-center gap-3">
+                <i data-lucide="user-check" class="w-4 h-4 text-slate-400 group-hover:text-brand-600 dark:group-hover:text-sky-400"></i>
+                <span>Việc của tôi</span>
+              </div>
+              <span id="badgeMyTasks" class="text-xs px-2 py-0.5 rounded-full font-bold bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">0</span>
+            </button>
+
+            <button 
+              id="btnViewAssignedByMe" 
+              onclick="setFilterView('assigned-by-me')" 
+              class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all group"
+            >
+              <div class="flex items-center gap-3">
+                <i data-lucide="send" class="w-4 h-4 text-slate-400 group-hover:text-brand-600 dark:group-hover:text-sky-400"></i>
+                <span>Tôi đã giao</span>
+              </div>
+              <span id="badgeAssignedByMe" class="text-xs px-2 py-0.5 rounded-full font-bold bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">0</span>
+            </button>
+
+            <!-- 3 MỤC TRẠNG THÁI CÔNG VIỆC MỚI (YÊU CẦU 2) -->
+            <button 
+              id="btnViewPending" 
+              onclick="setFilterView('pending')" 
+              class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all group"
+            >
+              <div class="flex items-center gap-3">
+                <i data-lucide="clock-3" class="w-4 h-4 text-amber-500"></i>
+                <span>Công việc đang làm</span>
+              </div>
+              <span id="badgePending" class="text-xs px-2 py-0.5 rounded-full font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">0</span>
+            </button>
+
+            <button 
+              id="btnViewOverdue" 
+              onclick="setFilterView('overdue')" 
+              class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all group"
+            >
+              <div class="flex items-center gap-3">
+                <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-500"></i>
+                <span>Công việc quá hạn</span>
+              </div>
+              <span id="badgeOverdue" class="text-xs px-2 py-0.5 rounded-full font-bold bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">0</span>
+            </button>
+
+            <button 
+              id="btnViewCompleted" 
+              onclick="setFilterView('completed')" 
+              class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all group"
+            >
+              <div class="flex items-center gap-3">
+                <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-500"></i>
+                <span>Công việc hoàn thành</span>
+              </div>
+              <span id="badgeCompleted" class="text-xs px-2 py-0.5 rounded-full font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">0</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 1.2 Danh mục Dự án nhóm (Kích hoạt lọc dự án & Quản lý Thêm/Sửa/Xóa) -->
+        <div class="mt-7">
+          <div class="flex items-center justify-between px-2 mb-2">
+            <div class="flex items-center gap-2">
+              <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Dự án nhóm</p>
+              <!-- Nút thêm dự án mới (+) -->
+              <button 
+                onclick="openProjectModal()" 
+                title="Tạo dự án mới"
+                class="w-5 h-5 flex items-center justify-center rounded-md bg-sky-100 hover:bg-brand-500 hover:text-white dark:bg-slate-800 dark:hover:bg-sky-600 text-brand-600 dark:text-sky-400 transition-all cursor-pointer"
+              >
+                <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+            <span class="text-[10px] text-brand-600 dark:text-sky-400 font-semibold cursor-pointer hover:underline" onclick="setFilterView('all')">Xem tất cả</span>
+          </div>
+          
+          <div class="space-y-1" id="projectListContainer">
+            <!-- Dự án sẽ được render tự động bằng JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Section: Chuyển đổi tài khoản (Giả lập đa người dùng) -->
+      <div class="p-4 border-t border-sky-100/80 dark:border-slate-800 bg-sky-50/50 dark:bg-night-850/50">
+        <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 px-1">Đang đăng nhập với vai trò:</label>
+        
+        <div class="relative">
+          <button 
+            id="userSwitchBtn" 
+            onclick="toggleUserDropdown()"
+            class="w-full flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-night-800 border border-sky-100 dark:border-slate-700/80 shadow-xs hover:border-brand-500 dark:hover:border-sky-500 transition-all text-left"
+          >
+            <div class="flex items-center gap-2.5 overflow-hidden">
+              <div id="currentUserAvatar" class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white text-xs shrink-0 bg-sky-600 shadow-xs">
+                T
+              </div>
+              <div class="truncate">
+                <p id="currentUserName" class="text-xs font-bold text-slate-900 dark:text-white truncate">Toàn (Tôi)</p>
+                <p id="currentUserRole" class="text-[11px] text-sky-600 dark:text-sky-400 font-medium truncate">Trưởng nhóm dự án</p>
+              </div>
+            </div>
+            <i data-lucide="chevrons-up-down" class="w-4 h-4 text-slate-400 shrink-0"></i>
+          </button>
+
+          <!-- Dropdown chuyển đổi tài khoản -->
+          <div 
+            id="userDropdownMenu" 
+            class="hidden absolute bottom-full left-0 right-0 mb-2 bg-white dark:bg-night-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl p-1.5 z-50 space-y-1"
+          >
+            <div class="px-2 py-1 text-[11px] font-semibold text-slate-400 border-b border-slate-100 dark:border-slate-700 mb-1">
+              Chọn tài khoản demo:
+            </div>
+            <div id="userOptionsList" class="space-y-1"></div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ====================================================================
+         2. WORKSPACE CHÍNH BÊN PHẢI
+         ==================================================================== -->
+    <main class="flex-1 flex flex-col min-w-0 overflow-hidden">
+      
+      <!-- Top Bar: Tiêu đề + Đồng hồ + Dark Mode Toggle -->
+      <header class="h-18 px-8 py-4 bg-white dark:bg-night-900 border-b border-sky-100 dark:border-slate-800/80 flex items-center justify-between shrink-0 z-10 transition-colors">
+        <div>
+          <div class="flex items-center gap-2.5">
+            <h1 id="workspaceTitle" class="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
+              Tất cả công việc
+            </h1>
+            <span id="projectActivePill" class="hidden text-xs font-semibold px-2.5 py-0.5 rounded-full bg-brand-50 text-brand-700 dark:bg-sky-950/60 dark:text-sky-300 border border-brand-200 dark:border-sky-800">
+              Dự án
+            </span>
+          </div>
+          <p id="workspaceSubtitle" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            Tổng quan danh sách công việc của toàn bộ thành viên trong nhóm
+          </p>
+        </div>
+
+        <!-- Bên phải Header: Nút Dark Mode + Đồng hồ -->
+        <div class="flex items-center gap-3">
+          <!-- Nút chuyển đổi Dark Mode -->
+          <button 
+            id="darkModeToggleBtn" 
+            onclick="toggleDarkMode()" 
+            title="Chuyển chế độ Sáng / Tối"
+            class="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-night-800 dark:hover:bg-night-850 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700 transition-all active:scale-95"
+          >
+            <i id="darkModeIcon" data-lucide="moon" class="w-4 h-4"></i>
+          </button>
+
+          <!-- Đồng hồ thời gian thực -->
+          <div class="flex items-center gap-2 px-3.5 py-2 rounded-full bg-sky-50 dark:bg-night-800/90 border border-sky-100 dark:border-slate-700 text-sky-700 dark:text-sky-400 text-xs font-bold tracking-wider">
+            <span class="w-2 h-2 rounded-full bg-sky-500 animate-pulse"></span>
+            <span id="realtimeClock">00:00:00</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Vùng hiển thị nội dung & Danh sách công việc -->
+      <div class="flex-1 overflow-y-auto p-8 space-y-6">
+        
+        <div class="max-w-4xl mx-auto space-y-6">
+
+          <!-- 2.1 Ô NHẬP CÔNG VIỆC MỞ RỘNG (INPUT SECTION) -->
+          <div id="taskCreatorCard" class="bg-white dark:bg-night-900 rounded-2xl border border-sky-100 dark:border-slate-800 shadow-sm transition-all relative z-10">
+            
+            <!-- Quick input header -->
+            <div class="p-4 sm:p-5 flex items-center gap-3 cursor-pointer" onclick="openTaskCreator()">
+              <div class="w-8 h-8 rounded-lg bg-sky-50 dark:bg-night-800 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+                <i data-lucide="plus-circle" class="w-5 h-5"></i>
+              </div>
+              <input 
+                type="text" 
+                id="taskTitleInput" 
+                placeholder="Thêm công việc mới cần làm... (Nhấp để mở rộng chi tiết)" 
+                autocomplete="off"
+                class="flex-1 bg-transparent text-sm font-semibold text-slate-800 dark:text-slate-100 placeholder-slate-400 outline-none"
+              >
+            </div>
+
+            <!-- Bảng mở rộng chi tiết -->
+            <div id="taskCreatorExpanded" class="hidden px-5 pb-5 pt-1 border-t border-slate-100 dark:border-slate-800/80 panel-expand">
+              <!-- Mô tả -->
+              <textarea 
+                id="taskDescInput" 
+                rows="2"
+                placeholder="Mô tả chi tiết công việc, yêu cầu hoặc ghi chú..."
+                class="w-full text-xs p-3 rounded-xl bg-slate-50 dark:bg-night-800/90 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 placeholder-slate-400 outline-none focus:border-brand-500 dark:focus:border-sky-500 mt-2 resize-none"
+              ></textarea>
+
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5 mt-3.5">
+                
+                <!-- Hạn hoàn thành (Deadline) -->
+                <div>
+                  <label class="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Hạn làm (Deadline)</label>
+                  <input 
+                    type="datetime-local" 
+                    id="taskDueDateInput" 
+                    class="w-full text-xs px-3 py-2 rounded-xl bg-white dark:bg-night-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 outline-none focus:border-brand-500"
+                  >
+                </div>
+
+                <!-- Người thực hiện (Assignee) -->
+                <div>
+                  <label class="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Người thực hiện</label>
+                  <select 
+                    id="taskAssigneeSelect" 
+                    class="w-full text-xs px-3 py-2 rounded-xl bg-white dark:bg-night-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 outline-none focus:border-brand-500"
+                  ></select>
+                </div>
+
+                <!-- Giao diện chọn Độ ưu tiên với ô màu sắc trực quan (Yêu cầu 3) -->
+                <div>
+                  <label class="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Độ ưu tiên</label>
+                  <div class="relative">
+                    <button 
+                      type="button"
+                      id="priorityDropdownBtn" 
+                      onclick="togglePriorityDropdown()"
+                      class="w-full text-xs px-3 py-2 rounded-xl bg-white dark:bg-night-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 flex items-center justify-between outline-none"
+                    >
+                      <span id="selectedPriorityDisplay" class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                        <span class="font-semibold">Trung bình</span>
+                      </span>
+                      <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400"></i>
+                    </button>
+
+                    <!-- Danh sách chọn có chấm màu sắc -->
+                    <div id="priorityOptionsList" class="hidden absolute top-full left-0 right-0 mt-1 bg-white dark:bg-night-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg p-1.5 z-30 space-y-1">
+                      <div onclick="selectPriority('Thấp')" class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs hover:bg-slate-50 dark:hover:bg-night-700 cursor-pointer">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                        <span class="font-medium text-slate-700 dark:text-slate-200">Thấp</span>
+                      </div>
+                      <div onclick="selectPriority('Trung bình')" class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs hover:bg-slate-50 dark:hover:bg-night-700 cursor-pointer">
+                        <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                        <span class="font-medium text-slate-700 dark:text-slate-200">Trung bình</span>
+                      </div>
+                      <div onclick="selectPriority('Khẩn cấp')" class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs hover:bg-slate-50 dark:hover:bg-night-700 cursor-pointer">
+                        <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                        <span class="font-medium text-slate-700 dark:text-slate-200">Khẩn cấp</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- Thuộc tính Dự án gắn vào task -->
+              <div class="mt-3.5 flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
+                <div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                  <i data-lucide="folder" class="w-3.5 h-3.5 text-brand-600 dark:text-sky-400"></i>
+                  <span>Dự án:</span>
+                  <select id="taskProjectSelect" class="bg-transparent font-semibold text-slate-800 dark:text-slate-200 outline-none border-b border-dashed border-slate-300 dark:border-slate-600 pb-0.5"></select>
+                </div>
+
+                <!-- Nút hành động -->
+                <div class="flex items-center gap-2">
+                  <button type="button" onclick="closeTaskCreator()" class="px-3.5 py-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200">
+                    Hủy
+                  </button>
+                  <button 
+                    type="button" 
+                    id="btnCreateTask"
+                    onclick="handleCreateTask(event)"
+                    class="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold shadow-md shadow-brand-500/25 flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+                  >
+                    <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                    <span>Tạo công việc</span>
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- ==============================================================
+               2.2 THANH CÔNG CỤ TOOLBAR (TÌM KIẾM, LỌC ĐỘ ƯU TIÊN, SẮP XẾP)
+               ============================================================== -->
+          <div class="bg-white dark:bg-night-900 rounded-2xl border border-sky-100 dark:border-slate-800 p-3.5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+            
+            <!-- Ô tìm kiếm thời gian thực (Search Input) -->
+            <div class="relative flex-1">
+              <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+              <input 
+                type="text" 
+                id="searchKeywordInput" 
+                oninput="handleSearchChange()"
+                placeholder="Tìm kiếm theo tên hoặc mô tả công việc..." 
+                class="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-slate-50 dark:bg-night-800 border border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-100 placeholder-slate-400 outline-none focus:border-brand-500 dark:focus:border-sky-500 transition-colors"
+              >
+            </div>
+
+            <div class="flex items-center gap-2.5 flex-wrap">
+              <!-- Bộ lọc độ ưu tiên (Filter Dropdown) -->
+              <div class="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                <i data-lucide="filter" class="w-3.5 h-3.5 text-brand-600 dark:text-sky-400"></i>
+                <select 
+                  id="filterPrioritySelect" 
+                  onchange="handleFilterPriorityChange()"
+                  class="bg-slate-50 dark:bg-night-800 border border-slate-200 dark:border-slate-700/80 text-xs font-semibold rounded-xl px-2.5 py-2 text-slate-700 dark:text-slate-200 outline-none focus:border-brand-500"
+                >
+                  <option value="all">Tất cả ưu tiên</option>
+                  <option value="Khẩn cấp">Khẩn cấp</option>
+                  <option value="Trung bình">Trung bình</option>
+                  <option value="Thấp">Thấp</option>
+                </select>
+              </div>
+
+              <!-- Bộ sắp xếp (Sort Dropdown) -->
+              <div class="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                <i data-lucide="arrow-up-down" class="w-3.5 h-3.5 text-brand-600 dark:text-sky-400"></i>
+                <select 
+                  id="sortOptionSelect" 
+                  onchange="handleSortChange()"
+                  class="bg-slate-50 dark:bg-night-800 border border-slate-200 dark:border-slate-700/80 text-xs font-semibold rounded-xl px-2.5 py-2 text-slate-700 dark:text-slate-200 outline-none focus:border-brand-500"
+                >
+                  <option value="deadline-asc">Hạn gần nhất (Deadline ↑)</option>
+                  <option value="deadline-desc">Hạn xa nhất (Deadline ↓)</option>
+                  <option value="priority-desc">Ưu tiên cao đến thấp</option>
+                  <option value="newest">Mới tạo nhất</option>
+                </select>
+              </div>
+
+              <!-- Số lượng trên trang -->
+              <select 
+                id="pageSizeSelect" 
+                onchange="handlePageSizeChange()"
+                class="bg-slate-50 dark:bg-night-800 border border-slate-200 dark:border-slate-700/80 text-xs font-semibold rounded-xl px-2 py-2 text-slate-700 dark:text-slate-200 outline-none"
+                title="Số công việc trên mỗi trang"
+              >
+                <option value="5">5 task/trang</option>
+                <option value="10" selected>10 task/trang</option>
+              </select>
+            </div>
+
+          </div>
+
+          <!-- ==============================================================
+               2.3 DANH SÁCH CÔNG VIỆC (TASK LIST)
+               ============================================================== -->
+          <ul id="taskListContainer" class="space-y-3"></ul>
+
+          <!-- Trạng thái trống (Empty State) -->
+          <div id="emptyStateContainer" class="hidden p-12 text-center bg-white dark:bg-night-900 rounded-2xl border border-dashed border-sky-200 dark:border-slate-800">
+            <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-sky-50 dark:bg-night-800 text-brand-600 dark:text-sky-400 flex items-center justify-center">
+              <i data-lucide="inbox" class="w-6 h-6"></i>
+            </div>
+            <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200">Không tìm thấy công việc nào</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Chưa có công việc nào khớp với các bộ lọc hoặc từ khóa tìm kiếm.</p>
+          </div>
+
+          <!-- ==============================================================
+               2.4 BỘ NÚT PHÂN TRANG (PAGINATION CONTROLS)
+               ============================================================== -->
+          <div id="paginationContainer" class="hidden flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 px-1">
+            <div id="paginationInfo" class="text-xs font-medium text-slate-500 dark:text-slate-400">
+              Hiển thị 1 - 10 / 25 công việc
+            </div>
+            <div id="paginationButtons" class="flex items-center gap-1.5">
+              <!-- Nút phân trang render bằng JS -->
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </main>
+
+  </div>
+
+  <!-- ====================================================================
+       MODAL THÔNG BÁO LỖI (CUSTOM VALIDATION MODAL)
+       ==================================================================== -->
+  <div 
+    id="customAlertModal" 
+    class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm transition-all duration-200"
+    onclick="handleModalBackdropClick(event)"
+  >
+    <div class="bg-white dark:bg-night-900 rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-sky-100 dark:border-slate-800 text-center transform scale-100 transition-all animate-in fade-in">
+      
+      <!-- Icon cảnh báo nổi bật -->
+      <div class="w-14 h-14 mx-auto mb-4 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-500 flex items-center justify-center shadow-inner">
+        <i data-lucide="alert-circle" class="w-7 h-7"></i>
+      </div>
+
+      <h3 class="text-base font-bold text-slate-900 dark:text-white mb-2">Thông báo</h3>
+      <p id="customAlertMessage" class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed mb-5">
+        Vui lòng nhập tên công việc!
+      </p>
+
+      <button 
+        type="button" 
+        onclick="hideCustomAlert()" 
+        class="w-full py-2.5 px-4 rounded-xl bg-brand-600 hover:bg-brand-700 active:scale-95 text-white text-xs font-bold shadow-md shadow-brand-500/30 transition-all cursor-pointer"
+      >
+        Đã hiểu và Đóng
+      </button>
+  <!-- ====================================================================
+       MODAL THÊM / SỬA DỰ ÁN (PROJECT MODAL)
+       ==================================================================== -->
+  <div 
+    id="projectModal" 
+    class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm transition-all duration-200"
+    onclick="handleProjectModalBackdropClick(event)"
+  >
+    <div class="bg-white dark:bg-night-900 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-sky-100 dark:border-slate-800 transform scale-100 transition-all animate-in fade-in">
+      
+      <div class="flex items-center justify-between pb-3 border-b border-sky-100 dark:border-slate-800 mb-4">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-sky-100 dark:bg-sky-950/80 text-brand-600 dark:text-sky-400 flex items-center justify-center">
+            <i data-lucide="folder-plus" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 id="projectModalTitle" class="text-sm font-bold text-slate-900 dark:text-white">Thêm dự án mới</h3>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">Phân loại công việc theo dự án nhóm</p>
+          </div>
+        </div>
+        <button onclick="closeProjectModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-lg">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <input type="hidden" id="projectModalId" value="" />
+
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Tên dự án <span class="text-rose-500">*</span></label>
+          <input 
+            type="text" 
+            id="projectNameInput" 
+            placeholder="Ví dụ: Thiết kế Website V3, Marketing..."
+            class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-sky-100 dark:border-slate-700 bg-sky-50/30 dark:bg-night-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+          />
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Màu đại diện dự án</label>
+          <div class="flex items-center gap-3" id="projectColorPickerContainer">
+            <!-- Render color selector dots -->
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-2.5 mt-6 pt-3 border-t border-sky-100 dark:border-slate-800">
+        <button 
+          type="button" 
+          onclick="closeProjectModal()" 
+          class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-night-800 transition-colors"
+        >
+          Hủy bỏ
+        </button>
+        <button 
+          type="button" 
+          onclick="handleSaveProject()" 
+          class="px-5 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 active:scale-95 text-white text-xs font-bold shadow-md shadow-brand-500/30 transition-all cursor-pointer"
+        >
+          Lưu dự án
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ====================================================================
+       MODAL SỬA CÔNG VIỆC (EDIT TASK MODAL)
+       ==================================================================== -->
+  <div 
+    id="editTaskModal" 
+    class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm transition-all duration-200"
+    onclick="handleEditTaskModalBackdropClick(event)"
+  >
+    <div class="bg-white dark:bg-night-900 rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-sky-100 dark:border-slate-800 transform scale-100 transition-all animate-in fade-in">
+      
+      <div class="flex items-center justify-between pb-3 border-b border-sky-100 dark:border-slate-800 mb-4">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-sky-100 dark:bg-sky-950/80 text-brand-600 dark:text-sky-400 flex items-center justify-center">
+            <i data-lucide="edit-3" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-slate-900 dark:text-white">Chỉnh sửa công việc</h3>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">Cập nhật thông tin chi tiết nhiệm vụ</p>
+          </div>
+        </div>
+        <button onclick="closeEditTaskModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-lg">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <input type="hidden" id="editTaskId" value="" />
+
+      <div class="space-y-4">
+        <!-- Tên công việc -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Tên công việc <span class="text-rose-500">*</span></label>
+          <input 
+            type="text" 
+            id="editTaskTitle" 
+            placeholder="Tên công việc..."
+            class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-sky-100 dark:border-slate-700 bg-sky-50/30 dark:bg-night-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+          />
+        </div>
+
+        <!-- Mô tả -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Mô tả chi tiết</label>
+          <textarea 
+            id="editTaskDesc" 
+            rows="3" 
+            placeholder="Mô tả công việc..."
+            class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-sky-100 dark:border-slate-700 bg-sky-50/30 dark:bg-night-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 resize-none"
+          ></textarea>
+        </div>
+
+        <!-- Deadline & Người thực hiện -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Thời hạn (Deadline)</label>
+            <input 
+              type="datetime-local" 
+              id="editTaskDueDate" 
+              class="w-full px-3 py-2 text-xs rounded-xl border border-sky-100 dark:border-slate-700 bg-sky-50/30 dark:bg-night-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Người thực hiện</label>
+            <select 
+              id="editTaskAssignee" 
+              class="w-full px-3 py-2 text-xs rounded-xl border border-sky-100 dark:border-slate-700 bg-sky-50/30 dark:bg-night-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+            ></select>
+          </div>
+        </div>
+
+        <!-- Dự án & Mức độ ưu tiên -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Dự án</label>
+            <select 
+              id="editTaskProject" 
+              class="w-full px-3 py-2 text-xs rounded-xl border border-sky-100 dark:border-slate-700 bg-sky-50/30 dark:bg-night-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+            ></select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Mức độ ưu tiên</label>
+            <select 
+              id="editTaskPriority" 
+              class="w-full px-3 py-2 text-xs rounded-xl border border-sky-100 dark:border-slate-700 bg-sky-50/30 dark:bg-night-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+            >
+              <option value="Thấp">🟢 Thấp</option>
+              <option value="Trung bình">🟡 Trung bình</option>
+              <option value="Khẩn cấp">🔴 Khẩn cấp</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-2.5 mt-6 pt-3 border-t border-sky-100 dark:border-slate-800">
+        <button 
+          type="button" 
+          onclick="closeEditTaskModal()" 
+          class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-night-800 transition-colors"
+        >
+          Hủy bỏ
+        </button>
+        <button 
+          type="button" 
+          onclick="handleUpdateTask()" 
+          class="px-5 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 active:scale-95 text-white text-xs font-bold shadow-md shadow-brand-500/30 transition-all cursor-pointer"
+        >
+          Cập nhật công việc
+        </button>
+      </div>
+
+    </div>
+  </div>
+  <script>
+    /* =====================================================================
+     * HÀM TIỆN ÍCH AN TOÀN (ESCAPE HTML XSS PREVENTION)
+     * ===================================================================== */
+    function escapeHTML(str) {
+      if (!str) return '';
+      return String(str).replace(/[&<>'"]/g, 
+        tag => ({
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          "'": '&#39;',
+          '"': '&quot;'
+        }[tag] || tag)
+      );
+    }
+
+    /* =====================================================================
+     * DỮ LIỆU BAN ĐẦU (MOCK DATA)
+     * ===================================================================== */
+    const STORAGE_KEY_PROJECTS = 'nexusteam_projects_v2';
+
+    // Danh sách dự án nhóm có thể thêm/sửa/xóa và lưu trữ localStorage
+    const DEFAULT_PROJECTS = [
+      { id: 'prj-app', name: 'Phát triển Ứng dụng V2', color: '#0ea5e9' },
+      { id: 'prj-design', name: 'Thiết kế UI/UX Design', color: '#8b5cf6' },
+      { id: 'prj-marketing', name: 'Marketing & Launching', color: '#10b981' }
+    ];
+
+    let projects = [];
+    try {
+      const storedPrjs = localStorage.getItem(STORAGE_KEY_PROJECTS);
+      if (storedPrjs) {
+        projects = JSON.parse(storedPrjs);
+      } else {
+        projects = [...DEFAULT_PROJECTS];
+        localStorage.setItem(STORAGE_KEY_PROJECTS, JSON.stringify(projects));
+      }
+    } catch (e) {
+      projects = [...DEFAULT_PROJECTS];
+    }
+
+    // Palette màu sắc cho dự án
+    const PROJECT_COLORS = [
+      '#0ea5e9', // Sky blue
+      '#8b5cf6', // Violet
+      '#10b981', // Emerald green
+      '#f59e0b', // Amber
+      '#ef4444', // Red / Rose
+      '#ec4899', // Pink
+      '#3b82f6', // Blue
+      '#6366f1'  // Indigo
+    ];
+    let selectedProjectColor = PROJECT_COLORS[0];
+
+    // Danh sách thành viên (Yêu cầu 5: Demo chuyển đổi tài khoản Toàn <-> Hoa)
+    const TEAM_MEMBERS = [
+      { id: 'user-toan', name: 'Toàn', fullName: 'Toàn (Tôi)', role: 'Trưởng nhóm dự án', avatarChar: 'T', color: '#0284c7' },
+      { id: 'user-hoa', name: 'Hoa', fullName: 'Hoa (Thành viên)', role: 'Lead Product Designer', avatarChar: 'H', color: '#ec4899' },
+      { id: 'user-minh', name: 'Minh', fullName: 'Minh (Thành viên)', role: 'Frontend Engineer', avatarChar: 'M', color: '#8b5cf6' },
+      { id: 'user-nam', name: 'Nam', fullName: 'Nam (Thành viên)', role: 'QA & Security Tester', avatarChar: 'N', color: '#10b981' }
+    ];
+
+    // ================= APP STATE =================
+    const STORAGE_KEY_TASKS = 'nexusteam_tasks_v2';
+    const STORAGE_KEY_USER = 'nexusteam_active_user_id';
+    const STORAGE_KEY_DARKMODE = 'nexusteam_darkmode';
+
+    let tasks = [];
+    let currentFilterView = 'all'; // 'all' | 'my-tasks' | 'assigned-by-me' | 'pending' | 'overdue' | 'completed' | 'project'
+    let selectedProjectId = null;
+    let currentUserId = localStorage.getItem(STORAGE_KEY_USER) || 'user-toan';
+    let selectedPriority = 'Trung bình';
+
+    // State mới cho Toolbar và Pagination (Yêu cầu 3)
+    let searchKeyword = '';
+    let filterPriority = 'all'; // 'all' | 'Khẩn cấp' | 'Trung bình' | 'Thấp'
+    let currentSortOption = 'deadline-asc'; // 'deadline-asc' | 'deadline-desc' | 'priority-desc' | 'newest'
+    let currentPage = 1;
+    let pageSize = 10;
+
+    // DOM Elements
+    const taskCreatorCard = document.getElementById('taskCreatorCard');
+    const taskCreatorExpanded = document.getElementById('taskCreatorExpanded');
+    const taskTitleInput = document.getElementById('taskTitleInput');
+    const taskDescInput = document.getElementById('taskDescInput');
+    const taskDueDateInput = document.getElementById('taskDueDateInput');
+    const taskAssigneeSelect = document.getElementById('taskAssigneeSelect');
+    const taskProjectSelect = document.getElementById('taskProjectSelect');
+    const taskListContainer = document.getElementById('taskListContainer');
+    const emptyStateContainer = document.getElementById('emptyStateContainer');
+    const realtimeClockEl = document.getElementById('realtimeClock');
+    const workspaceTitle = document.getElementById('workspaceTitle');
+    const workspaceSubtitle = document.getElementById('workspaceSubtitle');
+    const projectActivePill = document.getElementById('projectActivePill');
+    const projectListContainer = document.getElementById('projectListContainer');
+    const userDropdownMenu = document.getElementById('userDropdownMenu');
+    const priorityOptionsList = document.getElementById('priorityOptionsList');
+    const selectedPriorityDisplay = document.getElementById('selectedPriorityDisplay');
+    const paginationContainer = document.getElementById('paginationContainer');
+    const paginationInfo = document.getElementById('paginationInfo');
+    const paginationButtons = document.getElementById('paginationButtons');
+
+    /* =====================================================================
+     * 1. NÂNG CẤP LOCALSTORAGE HOÀN CHỈNH (Yêu cầu 1)
+     * ===================================================================== */
+    function loadTasksFromLocalStorage() {
+      const raw = localStorage.getItem(STORAGE_KEY_TASKS);
+      if (raw) {
+        try {
+          tasks = JSON.parse(raw);
+        } catch (e) {
+          tasks = [];
+        }
+      } else {
+        // Dữ liệu mẫu chuẩn bị sẵn khi khởi động lần đầu
+        const now = new Date();
+        const tomorrow = new Date(now.getTime() + 24 * 3600 * 1000).toISOString();
+        const yesterday = new Date(now.getTime() - 12 * 3600 * 1000).toISOString(); // Quá hạn (Cảnh báo đỏ)
+        const nextWeek = new Date(now.getTime() + 7 * 24 * 3600 * 1000).toISOString();
+
+        tasks = [
+          {
+            id: 'task-1',
+            title: 'Thiết kế Design System và Component Figma V2',
+            description: 'Hoàn thiện bảng màu pastel, bo góc và typography chuẩn.',
+            assigneeId: 'user-hoa',
+            createdById: 'user-toan',
+            projectId: 'prj-design',
+            priority: 'Khẩn cấp',
+            dueDate: tomorrow,
+            completed: false
+          },
+          {
+            id: 'task-2',
+            title: 'Tối ưu hóa Database Schema và Indexes cho Kanban',
+            description: 'Đánh composite index để không bị lag khi chuyển đổi view.',
+            assigneeId: 'user-toan',
+            createdById: 'user-toan',
+            projectId: 'prj-app',
+            priority: 'Khẩn cấp',
+            dueDate: yesterday, // Quá hạn
+            completed: false
+          },
+          {
+            id: 'task-3',
+            title: 'Lập kế hoạch truyền thông ngày ra mắt trên ProductHunt',
+            description: 'Soạn bài viết và chuẩn bị video teaser 30 giây.',
+            assigneeId: 'user-hoa',
+            createdById: 'user-toan',
+            projectId: 'prj-marketing',
+            priority: 'Trung bình',
+            dueDate: nextWeek,
+            completed: false
+          },
+          {
+            id: 'task-4',
+            title: 'Kiểm thử luồng OAuth2 và Token Refresh',
+            description: 'Đảm bảo cookie bảo mật HttpOnly và CSRF protection.',
+            assigneeId: 'user-minh',
+            createdById: 'user-hoa',
+            projectId: 'prj-app',
+            priority: 'Thấp',
+            dueDate: nextWeek,
+            completed: true // Đã hoàn thành
+          }
+        ];
+        saveTasksToLocalStorage();
+      }
+    }
+
+    // Tự động lưu mảng danh sách công việc vào LocalStorage
+    function saveTasksToLocalStorage() {
+      localStorage.setItem(STORAGE_KEY_TASKS, JSON.stringify(tasks));
+      renderTaskList();
+      updateSidebarBadges();
+    }
+
+    /* =====================================================================
+     * 2. QUẢN LÝ DỰ ÁN NHÓM (THÊM, SỬA, XÓA & LƯU LOCALSTORAGE)
+     * ===================================================================== */
+    function saveProjectsToLocalStorage() {
+      localStorage.setItem(STORAGE_KEY_PROJECTS, JSON.stringify(projects));
+      renderProjectList();
+      renderProjectDropdownOptions();
+    }
+
+    function renderProjectColorPicker() {
+      const container = document.getElementById('projectColorPickerContainer');
+      if (!container) return;
+      container.innerHTML = PROJECT_COLORS.map(c => `
+        <button 
+          type="button" 
+          onclick="selectProjectColor('${c}')" 
+          class="w-7 h-7 rounded-full transition-transform cursor-pointer flex items-center justify-center ${selectedProjectColor === c ? 'ring-2 ring-offset-2 ring-brand-500 scale-110 shadow-sm' : 'hover:scale-105'}" 
+          style="background-color: ${c};"
+          title="${c}"
+        >
+          ${selectedProjectColor === c ? '<i data-lucide="check" class="w-3.5 h-3.5 text-white"></i>' : ''}
+        </button>
+      `).join('');
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function selectProjectColor(color) {
+      selectedProjectColor = color;
+      renderProjectColorPicker();
+    }
+
+    function openProjectModal(projectId = null) {
+      const modal = document.getElementById('projectModal');
+      const titleEl = document.getElementById('projectModalTitle');
+      const idInput = document.getElementById('projectModalId');
+      const nameInput = document.getElementById('projectNameInput');
+
+      if (!modal) return;
+
+      if (projectId) {
+        // Chế độ chỉnh sửa dự án hiện có
+        const prj = projects.find(p => p.id === projectId);
+        if (prj) {
+          titleEl.textContent = 'Chỉnh sửa dự án';
+          idInput.value = prj.id;
+          nameInput.value = prj.name;
+          selectedProjectColor = prj.color || PROJECT_COLORS[0];
+        }
+      } else {
+        // Chế độ tạo dự án mới
+        titleEl.textContent = 'Thêm dự án mới';
+        idInput.value = '';
+        nameInput.value = '';
+        selectedProjectColor = PROJECT_COLORS[projects.length % PROJECT_COLORS.length];
+      }
+
+      renderProjectColorPicker();
+      modal.classList.remove('hidden');
+      setTimeout(() => nameInput.focus(), 100);
+    }
+
+    function closeProjectModal() {
+      const modal = document.getElementById('projectModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function handleProjectModalBackdropClick(e) {
+      if (e.target.id === 'projectModal') {
+        closeProjectModal();
+      }
+    }
+
+    function handleSaveProject() {
+      const idInput = document.getElementById('projectModalId');
+      const nameInput = document.getElementById('projectNameInput');
+
+      if (!nameInput) return;
+      const name = nameInput.value.trim();
+
+      if (!name) {
+        showCustomAlert("Vui lòng nhập tên dự án!");
+        return;
+      }
+
+      const editingId = idInput ? idInput.value : '';
+
+      if (editingId) {
+        // Cập nhật dự án cũ
+        projects = projects.map(p => {
+          if (p.id === editingId) {
+            return { ...p, name: name, color: selectedProjectColor };
+          }
+          return p;
+        });
+
+        // Nếu đang xem dự án này thì cập nhật tiêu đề workspace
+        if (currentFilterView === 'project' && selectedProjectId === editingId) {
+          workspaceTitle.textContent = `Dự án: ${name}`;
+          workspaceSubtitle.textContent = `Danh sách công việc thuộc phân hệ ${name}`;
+        }
+      } else {
+        // Tạo dự án mới
+        const newProject = {
+          id: 'prj-' + Date.now(),
+          name: name,
+          color: selectedProjectColor
+        };
+        projects.push(newProject);
+      }
+
+      saveProjectsToLocalStorage();
+      closeProjectModal();
+      renderTaskList(); // Cập nhật tên và màu dự án trên các task card
+    }
+
+    function deleteProject(projectId, event) {
+      if (event) event.stopPropagation();
+
+      const prj = projects.find(p => p.id === projectId);
+      const prjName = prj ? prj.name : 'dự án này';
+
+      if (!confirm(`Bạn có chắc chắn muốn xóa dự án "${prjName}"? Tất cả công việc thuộc dự án này cũng sẽ bị xóa vĩnh viễn!`)) {
+        return;
+      }
+
+      // Xóa dự án khỏi mảng projects
+      projects = projects.filter(p => p.id !== projectId);
+      // Xóa các task thuộc dự án này
+      tasks = tasks.filter(t => t.projectId !== projectId);
+
+      // Lưu lại cả 2 vào LocalStorage
+      localStorage.setItem(STORAGE_KEY_TASKS, JSON.stringify(tasks));
+      saveProjectsToLocalStorage();
+
+      // Nếu đang đứng ở góc nhìn dự án vừa xóa -> Quay về "Tất cả công việc"
+      if (currentFilterView === 'project' && selectedProjectId === projectId) {
+        setFilterView('all');
+      } else {
+        renderTaskList();
+        updateSidebarBadges();
+      }
+    }
+
+    function renderProjectList() {
+      projectListContainer.innerHTML = projects.map(prj => {
+        const isSelected = (currentFilterView === 'project' && selectedProjectId === prj.id);
+        const count = tasks.filter(t => t.projectId === prj.id).length;
+
+        return `
+          <div 
+            onclick="selectProjectFilter('${prj.id}')"
+            class="group w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+              isSelected 
+                ? 'bg-sky-100/80 text-brand-700 dark:bg-sky-950/80 dark:text-sky-300 shadow-xs' 
+                : 'text-slate-600 dark:text-slate-400 hover:bg-sky-50 dark:hover:bg-night-800'
+            }"
+          >
+            <div class="flex items-center gap-2.5 truncate flex-1 min-w-0 pr-2">
+              <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${prj.color};"></span>
+              <span class="truncate">${escapeHTML(prj.name)}</span>
+            </div>
+
+            <div class="flex items-center gap-1 shrink-0">
+              <!-- Số lượng task trong dự án -->
+              <span class="text-[11px] px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-night-800 text-slate-500 font-bold group-hover:hidden">${count}</span>
+
+              <!-- Nút Sửa & Xóa dự án hiển thị khi Hover (Yêu cầu 1) -->
+              <div class="hidden group-hover:flex items-center gap-0.5">
+                <button 
+                  type="button"
+                  onclick="event.stopPropagation(); openProjectModal('${prj.id}')" 
+                  title="Sửa dự án"
+                  class="p-1 hover:text-brand-600 dark:hover:text-sky-400 text-slate-400 rounded-md transition-colors"
+                >
+                  <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                </button>
+                <button 
+                  type="button"
+                  onclick="deleteProject('${prj.id}', event)" 
+                  title="Xóa dự án và task liên quan"
+                  class="p-1 hover:text-rose-600 text-slate-400 rounded-md transition-colors"
+                >
+                  <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      renderProjectDropdownOptions();
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function renderProjectDropdownOptions() {
+      const optionsHtml = projects.map(p => `
+        <option value="${p.id}">${escapeHTML(p.name)}</option>
+      `).join('');
+
+      if (taskProjectSelect) {
+        const curVal = taskProjectSelect.value;
+        taskProjectSelect.innerHTML = optionsHtml;
+        if (curVal && projects.some(p => p.id === curVal)) {
+          taskProjectSelect.value = curVal;
+        }
+      }
+
+      const editTaskProjectEl = document.getElementById('editTaskProject');
+      if (editTaskProjectEl) {
+        const curVal = editTaskProjectEl.value;
+        editTaskProjectEl.innerHTML = optionsHtml;
+        if (curVal && projects.some(p => p.id === curVal)) {
+          editTaskProjectEl.value = curVal;
+        }
+      }
+    }
+
+    function selectProjectFilter(projectId) {
+      currentFilterView = 'project';
+      selectedProjectId = projectId;
+      currentPage = 1; // Reset trang về 1 khi đổi lọc
+      const prj = projects.find(p => p.id === projectId);
+
+      workspaceTitle.textContent = `Dự án: ${prj ? prj.name : ''}`;
+      workspaceSubtitle.textContent = `Danh sách công việc thuộc phân hệ ${prj ? prj.name : ''}`;
+      projectActivePill.classList.remove('hidden');
+
+      clearActiveViewButtons();
+      renderProjectList();
+      renderTaskList();
+    }
+
+    /* =====================================================================
+     * 3. GIAO DIỆN CHỌN ĐỘ ƯU TIÊN VỚI Ô MÀU TRỰC QUAN (Yêu cầu 3)
+     * ===================================================================== */
+    const PRIORITY_CONFIG = {
+      'Thấp': {
+        colorDot: 'bg-emerald-500',
+        badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/60',
+      },
+      'Trung bình': {
+        colorDot: 'bg-amber-500',
+        badgeClass: 'bg-amber-50 text-amber-700 border-amber-200/60 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800/60',
+      },
+      'Khẩn cấp': {
+        colorDot: 'bg-rose-500',
+        badgeClass: 'bg-rose-50 text-rose-700 border-rose-200/60 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800/60',
+      }
+    };
+
+    function togglePriorityDropdown() {
+      priorityOptionsList.classList.toggle('hidden');
+    }
+
+    function selectPriority(val) {
+      selectedPriority = val;
+      const conf = PRIORITY_CONFIG[val];
+      selectedPriorityDisplay.innerHTML = `
+        <span class="w-2.5 h-2.5 rounded-full ${conf.colorDot}"></span>
+        <span class="font-semibold">${val}</span>
+      `;
+      priorityOptionsList.classList.add('hidden');
+    }
+
+    /* =====================================================================
+     * 4. NÚT CHUYỂN ĐỔI DARK MODE & LƯU LOCALSTORAGE (Yêu cầu 4)
+     * ===================================================================== */
+    function initDarkMode() {
+      const isDark = localStorage.getItem(STORAGE_KEY_DARKMODE) === 'true';
+      applyDarkMode(isDark);
+    }
+
+    function toggleDarkMode() {
+      const isCurrentlyDark = document.documentElement.classList.contains('dark');
+      applyDarkMode(!isCurrentlyDark);
+    }
+
+    function applyDarkMode(enable) {
+      const icon = document.getElementById('darkModeIcon');
+      if (enable) {
+        document.documentElement.classList.add('dark');
+        localStorage.setItem(STORAGE_KEY_DARKMODE, 'true');
+        if (icon) icon.setAttribute('data-lucide', 'sun');
+      } else {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem(STORAGE_KEY_DARKMODE, 'false');
+        if (icon) icon.setAttribute('data-lucide', 'moon');
+      }
+      if (window.lucide) lucide.createIcons();
+    }
+
+    /* =====================================================================
+     * 5. GIẢ LẬP ĐA NGƯỜI DÙNG / CHUYỂN ĐỔI TÀI KHOẢN (Yêu cầu 5)
+     * ===================================================================== */
+    function getCurrentUser() {
+      return TEAM_MEMBERS.find(m => m.id === currentUserId) || TEAM_MEMBERS[0];
+    }
+
+    function toggleUserDropdown() {
+      userDropdownMenu.classList.toggle('hidden');
+    }
+
+    function switchUserAccount(newUserId) {
+      currentUserId = newUserId;
+      localStorage.setItem(STORAGE_KEY_USER, newUserId);
+      userDropdownMenu.classList.add('hidden');
+      currentPage = 1;
+      updateUserCardUI();
+      renderTeamAssigneeSelect();
+      renderTaskList();
+      updateSidebarBadges();
+    }
+
+    function updateUserCardUI() {
+      const user = getCurrentUser();
+      document.getElementById('currentUserName').textContent = user.fullName;
+      document.getElementById('currentUserRole').textContent = user.role;
+      const avatarEl = document.getElementById('currentUserAvatar');
+      avatarEl.textContent = user.avatarChar;
+      avatarEl.style.backgroundColor = user.color;
+
+      const optionsContainer = document.getElementById('userOptionsList');
+      optionsContainer.innerHTML = TEAM_MEMBERS.map(m => `
+        <button 
+          onclick="switchUserAccount('${m.id}')"
+          class="w-full flex items-center justify-between p-2 rounded-lg text-xs font-semibold hover:bg-sky-50 dark:hover:bg-night-700 transition-colors ${
+            m.id === currentUserId ? 'text-brand-600 dark:text-sky-400 bg-sky-50/60 dark:bg-night-750' : 'text-slate-700 dark:text-slate-300'
+          }"
+        >
+          <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style="background:${m.color}">${m.avatarChar}</span>
+            <span>${m.name} (${m.role.split(' ')[0]})</span>
+          </div>
+          ${m.id === currentUserId ? '<i data-lucide="check" class="w-3.5 h-3.5"></i>' : ''}
+        </button>
+      `).join('');
+
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function renderTeamAssigneeSelect() {
+      taskAssigneeSelect.innerHTML = TEAM_MEMBERS.map(m => `
+        <option value="${m.id}" ${m.id === currentUserId ? 'selected' : ''}>${m.fullName}</option>
+      `).join('');
+    }
+
+    /* =====================================================================
+     * 6. QUẢN LÝ GÓC NHÌN BỘ LỌC VÀ 3 MỤC TRẠNG THÁI SIDEBAR (YÊU CẦU 2)
+     * ===================================================================== */
+    const VIEW_BUTTON_IDS = {
+      'all': 'btnViewAll',
+      'my-tasks': 'btnViewMyTasks',
+      'assigned-by-me': 'btnViewAssignedByMe',
+      'pending': 'btnViewPending',
+      'overdue': 'btnViewOverdue',
+      'completed': 'btnViewCompleted'
+    };
+
+    function setFilterView(viewType) {
+      currentFilterView = viewType;
+      selectedProjectId = null;
+      currentPage = 1; // Reset trang về 1
+      projectActivePill.classList.add('hidden');
+
+      clearActiveViewButtons();
+      const activeBtnId = VIEW_BUTTON_IDS[viewType];
+      if (activeBtnId) {
+        const activeBtn = document.getElementById(activeBtnId);
+        if (activeBtn) {
+          activeBtn.classList.add('bg-brand-50', 'text-brand-600', 'dark:bg-sky-950/80', 'dark:text-sky-300', 'shadow-xs');
+        }
+      }
+
+      const currentUser = getCurrentUser();
+      if (viewType === 'my-tasks') {
+        workspaceTitle.textContent = `Việc của tôi (${currentUser.name})`;
+        workspaceSubtitle.textContent = `Các công việc được giao trực tiếp cho ${currentUser.name} thực hiện`;
+      } else if (viewType === 'assigned-by-me') {
+        workspaceTitle.textContent = `Tôi đã giao (${currentUser.name})`;
+        workspaceSubtitle.textContent = `Các công việc do ${currentUser.name} tạo và giao cho đồng nghiệp`;
+      } else if (viewType === 'pending') {
+        workspaceTitle.textContent = 'Công việc đang làm';
+        workspaceSubtitle.textContent = 'Danh sách các công việc chưa hoàn thành và vẫn còn trong hạn';
+      } else if (viewType === 'overdue') {
+        workspaceTitle.textContent = 'Công việc quá hạn ⚠️';
+        workspaceSubtitle.textContent = 'Danh sách các công việc đã vượt quá thời gian Deadline mà chưa hoàn thành';
+      } else if (viewType === 'completed') {
+        workspaceTitle.textContent = 'Công việc hoàn thành ✅';
+        workspaceSubtitle.textContent = 'Lưu trữ các công việc đã hoàn thành của nhóm';
+      } else {
+        workspaceTitle.textContent = 'Tất cả công việc';
+        workspaceSubtitle.textContent = 'Tổng quan danh sách công việc chưa hoàn thành của nhóm';
+      }
+
+      renderProjectList();
+      renderTaskList();
+    }
+
+    function clearActiveViewButtons() {
+      Object.values(VIEW_BUTTON_IDS).forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.classList.remove('bg-brand-50', 'text-brand-600', 'dark:bg-sky-950/80', 'dark:text-sky-300', 'shadow-xs');
+          el.classList.add('text-slate-600', 'dark:text-slate-300', 'hover:bg-sky-50', 'dark:hover:bg-night-800');
+        }
+      });
+    }
+
+    // Cập nhật số lượng đếm trên các Badges ở Sidebar theo thời gian thực (Yêu cầu 2)
+    function updateSidebarBadges() {
+      const user = getCurrentUser();
+      const isLeader = (user.id === 'user-toan');
+      const now = new Date();
+
+      // Quyền truy cập
+      const accessibleTasks = isLeader ? tasks : tasks.filter(t => t.assigneeId === user.id || t.createdById === user.id);
+
+      // 1. Tất cả (chỉ tính task chưa hoàn thành theo luật ẩn task đã xong)
+      const allCount = accessibleTasks.filter(t => !t.completed).length;
+      // 2. Việc của tôi
+      const myCount = accessibleTasks.filter(t => t.assigneeId === user.id && !t.completed).length;
+      // 3. Tôi đã giao
+      const assignedByMeCount = accessibleTasks.filter(t => t.createdById === user.id && t.assigneeId !== user.id).length;
+      // 4. Công việc đang làm (pending & chưa quá hạn)
+      const pendingCount = accessibleTasks.filter(t => {
+        if (t.completed) return false;
+        if (!t.dueDate) return true;
+        return new Date(t.dueDate) >= now;
+      }).length;
+      // 5. Công việc quá hạn (chưa xong & dueDate < now)
+      const overdueCount = accessibleTasks.filter(t => {
+        if (t.completed) return false;
+        if (!t.dueDate) return false;
+        return new Date(t.dueDate) < now;
+      }).length;
+      // 6. Công việc hoàn thành
+      const completedCount = accessibleTasks.filter(t => t.completed).length;
+
+      document.getElementById('badgeAll').textContent = allCount;
+      document.getElementById('badgeMyTasks').textContent = myCount;
+      document.getElementById('badgeAssignedByMe').textContent = assignedByMeCount;
+      document.getElementById('badgePending').textContent = pendingCount;
+      document.getElementById('badgeOverdue').textContent = overdueCount;
+      document.getElementById('badgeCompleted').textContent = completedCount;
+
+      renderProjectList();
+    }
+
+    /* =====================================================================
+     * 6.2 SỰ KIỆN THANH CÔNG CỤ TOOLBAR (YÊU CẦU 3)
+     * ===================================================================== */
+    function handleSearchChange() {
+      const input = document.getElementById('searchKeywordInput');
+      searchKeyword = input ? input.value.trim().toLowerCase() : '';
+      currentPage = 1;
+      renderTaskList();
+    }
+
+    function handleFilterPriorityChange() {
+      const select = document.getElementById('filterPrioritySelect');
+      filterPriority = select ? select.value : 'all';
+      currentPage = 1;
+      renderTaskList();
+    }
+
+    function handleSortChange() {
+      const select = document.getElementById('sortOptionSelect');
+      currentSortOption = select ? select.value : 'deadline-asc';
+      currentPage = 1;
+      renderTaskList();
+    }
+
+    function handlePageSizeChange() {
+      const select = document.getElementById('pageSizeSelect');
+      pageSize = select ? parseInt(select.value, 10) : 10;
+      currentPage = 1;
+      renderTaskList();
+    }
+
+    function goToPage(page) {
+      currentPage = page;
+      renderTaskList();
+    }
+
+    /* =====================================================================
+     * 7. THAO TÁC TẠO TASK, ĐÁNH DẤU VÀ XÓA TASK
+     * ===================================================================== */
+    /* =====================================================================
+     * 7. THAO TÁC TẠO TASK MỚI (AN TOÀN - CÓ TRY-CATCH & DEBUG LOGS)
+     * ===================================================================== */
+    function openTaskCreator() {
+      taskCreatorCard.classList.add('ring-2', 'ring-brand-500/20');
+      taskCreatorExpanded.classList.remove('hidden');
+    }
+
+    function closeTaskCreator() {
+      taskCreatorCard.classList.remove('ring-2', 'ring-brand-500/20');
+      taskCreatorExpanded.classList.add('hidden');
+      if (taskTitleInput) taskTitleInput.value = '';
+      if (taskDescInput) taskDescInput.value = '';
+      setDefaultDueDate();
+    }
+
+    /* =====================================================================
+     * 6.1 MODAL THÔNG BÁO LỖI TÙY CHỈNH (CUSTOM ALERT MODAL - THAY THẾ ALERT)
+     * ===================================================================== */
+    function showCustomAlert(message) {
+      const modal = document.getElementById('customAlertModal');
+      const msgEl = document.getElementById('customAlertMessage');
+      if (msgEl) msgEl.textContent = message || "Vui lòng nhập tên công việc!";
+      if (modal) modal.classList.remove('hidden');
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function hideCustomAlert() {
+      const modal = document.getElementById('customAlertModal');
+      if (modal) modal.classList.add('hidden');
+      const titleEl = document.getElementById('taskTitleInput');
+      if (titleEl) titleEl.focus();
+    }
+
+    function handleModalBackdropClick(e) {
+      if (e.target.id === 'customAlertModal') {
+        hideCustomAlert();
+      }
+    }
+
+    /* =====================================================================
+     * 7. THAO TÁC TẠO TASK MỚI (AN TOÀN - CÓ VALIDATION CHẶT CHẼ)
+     * ===================================================================== */
+    function openTaskCreator() {
+      taskCreatorCard.classList.add('ring-2', 'ring-brand-500/20');
+      taskCreatorExpanded.classList.remove('hidden');
+    }
+
+    function closeTaskCreator() {
+      taskCreatorCard.classList.remove('ring-2', 'ring-brand-500/20');
+      taskCreatorExpanded.classList.add('hidden');
+      if (taskTitleInput) taskTitleInput.value = '';
+      if (taskDescInput) taskDescInput.value = '';
+      setDefaultDueDate();
+    }
+
+    if (taskTitleInput) {
+      taskTitleInput.addEventListener('focus', openTaskCreator);
+      taskTitleInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          handleCreateTask(e);
+        }
+      });
+    }
+
+    function setDefaultDueDate() {
+      try {
+        const now = new Date();
+        now.setHours(now.getHours() + 24);
+        now.setMinutes(0);
+        const iso = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+        if (taskDueDateInput) taskDueDateInput.value = iso;
+      } catch (err) {
+        console.error("Lỗi khi thiết lập deadline mặc định:", err);
+      }
+    }
+
+    function handleCreateTask(e) {
+      if (e && e.preventDefault) e.preventDefault();
+
+      console.log("%c[NexusTeam] Bắt đầu kiểm tra và tạo công việc...", "color: #0284c7; font-weight: bold;");
+
+      try {
+        const titleEl = document.getElementById('taskTitleInput');
+        const descEl = document.getElementById('taskDescInput');
+        const dueDateEl = document.getElementById('taskDueDateInput');
+        const assigneeEl = document.getElementById('taskAssigneeSelect');
+        const projectEl = document.getElementById('taskProjectSelect');
+
+        if (!titleEl) {
+          throw new Error("Không tìm thấy trường 'taskTitleInput' trên giao diện!");
+        }
+
+        const titleVal = titleEl.value ? titleEl.value.trim() : '';
+
+        // 1. KIỂM TRA TÊN CÔNG VIỆC Ở ĐẦU HÀM (NẾU RỖNG -> HIỆN MODAL VÀ DỪNG NGAY)
+        if (titleVal === "") {
+          console.warn("[NexusTeam] Tiêu đề rỗng -> Ngừng tạo task.");
+          showCustomAlert("Vui lòng nhập tên công việc!");
+          return; // DỪNG HÀM NGAY LẬP TỨC
+        }
+
+        const descVal = descEl && descEl.value ? descEl.value.trim() : '';
+        const dueDateVal = dueDateEl && dueDateEl.value ? dueDateEl.value : '';
+        const assigneeVal = assigneeEl && assigneeEl.value ? assigneeEl.value : (TEAM_MEMBERS[0] ? TEAM_MEMBERS[0].id : 'user-toan');
+        const projectVal = projectEl && projectEl.value ? projectEl.value : (projects[0] ? projects[0].id : 'prj-app');
+        const priorityVal = selectedPriority || 'Trung bình';
+
+        // Xử lý chuyển đổi ngày giờ deadline chuẩn ISO
+        let deadlineISO = null;
+        if (dueDateVal) {
+          const parsedDate = new Date(dueDateVal);
+          if (!isNaN(parsedDate.getTime())) {
+            deadlineISO = parsedDate.toISOString();
+          } else {
+            const d = new Date();
+            d.setHours(d.getHours() + 24);
+            deadlineISO = d.toISOString();
+          }
+        }
+
+        // Khởi tạo đối tượng Task mới với ĐẦY ĐỦ các trường dữ liệu
+        const currentUser = getCurrentUser();
+        const newTask = {
+          id: 'task-' + Date.now(),
+          title: titleVal,
+          description: descVal,
+          desc: descVal,
+          assigneeId: assigneeVal,
+          assignee: assigneeVal,
+          createdById: currentUserId,
+          creator: currentUser ? currentUser.name : 'Toàn',
+          projectId: projectVal,
+          project: projectVal,
+          priority: priorityVal,
+          dueDate: deadlineISO,
+          deadline: deadlineISO,
+          completed: false,
+          status: 'pending'
+        };
+
+        console.log("[NexusTeam] Tạo task thành công:", newTask);
+
+        if (!Array.isArray(tasks)) {
+          tasks = [];
+        }
+        tasks.unshift(newTask);
+
+        // Lưu vào LocalStorage & Render lại giao diện
+        saveTasksToLocalStorage();
+
+        // Đóng panel và reset form
+        closeTaskCreator();
+
+      } catch (error) {
+        console.error("%c[NexusTeam LỖI TẠO TASK]:", "color: #ef4444; font-weight: bold;", error);
+        showCustomAlert("Đã xảy ra lỗi: " + error.message);
+      }
+    }
+
+    // Gắn sự kiện click an toàn duy nhất vào nút Tạo công việc
+    const btnCreateTaskEl = document.getElementById('btnCreateTask');
+    if (btnCreateTaskEl) {
+      btnCreateTaskEl.onclick = handleCreateTask;
+    }
+
+    /* =====================================================================
+     * 7.0 CHỈNH SỬA CÔNG VIỆC (TASK EDIT MODAL - YÊU CẦU 2)
+     * ===================================================================== */
+    function openEditTaskModal(taskId) {
+      const task = tasks.find(t => t.id === taskId);
+      if (!task) return;
+
+      const modal = document.getElementById('editTaskModal');
+      const idInput = document.getElementById('editTaskId');
+      const titleInput = document.getElementById('editTaskTitle');
+      const descInput = document.getElementById('editTaskDesc');
+      const dueDateInput = document.getElementById('editTaskDueDate');
+      const assigneeSelect = document.getElementById('editTaskAssignee');
+      const projectSelect = document.getElementById('editTaskProject');
+      const prioritySelect = document.getElementById('editTaskPriority');
+
+      if (!modal) return;
+
+      idInput.value = task.id;
+      titleInput.value = task.title || '';
+      descInput.value = task.description || task.desc || '';
+
+      // Định dạng ISO về datetime-local (YYYY-MM-DDTHH:mm)
+      if (task.dueDate) {
+        try {
+          const d = new Date(task.dueDate);
+          if (!isNaN(d.getTime())) {
+            const localIso = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+            dueDateInput.value = localIso;
+          } else {
+            dueDateInput.value = '';
+          }
+        } catch (e) {
+          dueDateInput.value = '';
+        }
+      } else {
+        dueDateInput.value = '';
+      }
+
+      // Populate danh sách thành viên thực hiện
+      assigneeSelect.innerHTML = TEAM_MEMBERS.map(m => `
+        <option value="${m.id}" ${m.id === task.assigneeId ? 'selected' : ''}>${escapeHTML(m.name)} (${escapeHTML(m.role)})</option>
+      `).join('');
+
+      // Populate danh sách dự án
+      projectSelect.innerHTML = projects.map(p => `
+        <option value="${p.id}" ${p.id === task.projectId ? 'selected' : ''}>${escapeHTML(p.name)}</option>
+      `).join('');
+
+      // Gán độ ưu tiên
+      prioritySelect.value = task.priority || 'Trung bình';
+
+      modal.classList.remove('hidden');
+      setTimeout(() => titleInput.focus(), 100);
+    }
+
+    function closeEditTaskModal() {
+      const modal = document.getElementById('editTaskModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function handleEditTaskModalBackdropClick(e) {
+      if (e.target.id === 'editTaskModal') {
+        closeEditTaskModal();
+      }
+    }
+
+    function handleUpdateTask() {
+      const idInput = document.getElementById('editTaskId');
+      const titleInput = document.getElementById('editTaskTitle');
+      const descInput = document.getElementById('editTaskDesc');
+      const dueDateInput = document.getElementById('editTaskDueDate');
+      const assigneeSelect = document.getElementById('editTaskAssignee');
+      const projectSelect = document.getElementById('editTaskProject');
+      const prioritySelect = document.getElementById('editTaskPriority');
+
+      if (!idInput || !titleInput) return;
+      const taskId = idInput.value;
+      const title = titleInput.value.trim();
+
+      if (!title) {
+        showCustomAlert("Vui lòng nhập tên công việc!");
+        return;
+      }
+
+      const desc = descInput ? descInput.value.trim() : '';
+      const assigneeId = assigneeSelect ? assigneeSelect.value : '';
+      const projectId = projectSelect ? projectSelect.value : '';
+      const priority = prioritySelect ? prioritySelect.value : 'Trung bình';
+
+      let deadlineISO = null;
+      if (dueDateInput && dueDateInput.value) {
+        const parsed = new Date(dueDateInput.value);
+        if (!isNaN(parsed.getTime())) {
+          deadlineISO = parsed.toISOString();
+        }
+      }
+
+      // Cập nhật công việc trong danh sách
+      tasks = tasks.map(t => {
+        if (t.id === taskId) {
+          return {
+            ...t,
+            title: title,
+            description: desc,
+            desc: desc,
+            assigneeId: assigneeId,
+            assignee: assigneeId,
+            projectId: projectId,
+            project: projectId,
+            priority: priority,
+            dueDate: deadlineISO,
+            deadline: deadlineISO
+          };
+        }
+        return t;
+      });
+
+      saveTasksToLocalStorage();
+      closeEditTaskModal();
+    }
+
+    /* =====================================================================
+     * 7.1 ĐÁNH DẤU HOÀN THÀNH VÀ BẮN PHÁO BÔNG (CONFETTI EFFECT - YÊU CẦU 1)
+     * ===================================================================== */
+    function triggerConfettiCelebration() {
+      try {
+        if (typeof confetti === 'function') {
+          confetti({
+            particleCount: 110,
+            spread: 75,
+            origin: { y: 0.6 }
+          });
+          setTimeout(() => {
+            confetti({ particleCount: 50, angle: 60, spread: 55, origin: { x: 0 } });
+            confetti({ particleCount: 50, angle: 120, spread: 55, origin: { x: 1 } });
+          }, 200);
+        } else {
+          console.log("Thư viện confetti đang tải hoặc chưa sẵn sàng.");
+        }
+      } catch (e) {
+        console.warn("Lỗi kích hoạt confetti:", e);
+      }
+    }
+
+    function toggleTaskComplete(taskId) {
+      let isNowCompleted = false;
+
+      tasks = tasks.map(t => {
+        if (t.id === taskId) {
+          const nextState = !t.completed;
+          if (nextState) isNowCompleted = true; // Vừa chuyển sang hoàn thành
+          return { ...t, completed: nextState, status: nextState ? 'completed' : 'pending' };
+        }
+        return t;
+      });
+
+      // Lưu lại vào LocalStorage & Cập nhật giao diện
+      saveTasksToLocalStorage();
+
+      // Kích hoạt hiệu ứng pháo bông confetti rực rỡ khi hoàn thành
+      if (isNowCompleted) {
+        triggerConfettiCelebration();
+      }
+    }
+
+    function deleteTask(taskId, btnEl) {
+      const li = btnEl.closest('li');
+      if (li) {
+        li.classList.add('fade-out');
+        setTimeout(() => {
+          tasks = tasks.filter(t => t.id !== taskId);
+          saveTasksToLocalStorage();
+        }, 300);
+      } else {
+        tasks = tasks.filter(t => t.id !== taskId);
+        saveTasksToLocalStorage();
+      }
+    }
+
+    /* =====================================================================
+     * 8. LOGIC HẠN CHÓT THEO THỜI GIAN THỰC (REAL-TIME DEADLINE LOGIC)
+     * ===================================================================== */
+    function checkDeadlineUrgency(isoString) {
+      if (!isoString) return { text: 'Không có hạn', isUrgent: false, isOverdue: false, statusLabel: '', badgeClass: 'bg-slate-50 text-slate-500 border-slate-200/80 dark:bg-night-800 dark:text-slate-400 dark:border-slate-700/60' };
+      
+      const due = new Date(isoString);
+      const now = new Date();
+      
+      const datePart = due.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const timePart = due.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+      const fullDateStr = `${timePart} - ${datePart}`;
+      const diffHours = (due.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+      // Đã vượt quá thời gian Deadline -> "Quá hạn"
+      if (diffHours < 0) {
+        return {
+          text: fullDateStr,
+          isUrgent: true,
+          isOverdue: true,
+          statusLabel: 'Quá hạn',
+          badgeClass: 'bg-rose-100 text-rose-700 border-rose-300 font-extrabold dark:bg-rose-950/70 dark:text-rose-300 dark:border-rose-800'
+        };
+      }
+      
+      // Chưa quá hạn nhưng dưới 2 tiếng -> "Gấp"
+      if (diffHours <= 2) {
+        return {
+          text: fullDateStr,
+          isUrgent: true,
+          isOverdue: false,
+          statusLabel: 'Gấp',
+          badgeClass: 'bg-amber-100 text-amber-800 border-amber-300 font-bold dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800'
+        };
+      }
+
+      return {
+        text: fullDateStr,
+        isUrgent: false,
+        isOverdue: false,
+        statusLabel: '',
+        badgeClass: 'bg-slate-50 text-slate-500 border-slate-200/80 dark:bg-night-800 dark:text-slate-400 dark:border-slate-700/60'
+      };
+    }
+
+    /* =====================================================================
+     * 9. RENDER DANH SÁCH CÔNG VIỆC TỐI ƯU HÓA ĐA ĐIỀU KIỆN & PHÂN TRANG (YÊU CẦU 1, 2, 3)
+     * ===================================================================== */
+    function renderTaskList() {
+      const user = getCurrentUser();
+      const isLeader = (user.id === 'user-toan');
+      const now = new Date();
+
+      // BƯỚC 1: PHÂN QUYỀN TRUY CẬP (Role-based)
+      let accessible = isLeader 
+        ? [...tasks] 
+        : tasks.filter(t => t.assigneeId === user.id || t.createdById === user.id);
+
+      // BƯỚC 2: LỌC THEO GÓC NHÌN SIDEBAR HOẶC DỰ ÁN
+      let viewFiltered = accessible.filter(task => {
+        if (currentFilterView === 'all') {
+          // Luật yêu cầu 1: Ở mục "Tất cả công việc", công việc đã hoàn thành sẽ TỰ ĐỘNG BỊ ẨN
+          return !task.completed;
+        }
+        if (currentFilterView === 'my-tasks') {
+          return task.assigneeId === user.id && !task.completed;
+        }
+        if (currentFilterView === 'assigned-by-me') {
+          return task.createdById === user.id && task.assigneeId !== user.id;
+        }
+        if (currentFilterView === 'pending') {
+          // 🕒 Công việc đang làm: pending và chưa quá hạn
+          if (task.completed) return false;
+          if (!task.dueDate) return true;
+          return new Date(task.dueDate) >= now;
+        }
+        if (currentFilterView === 'overdue') {
+          // ⚠️ Công việc quá hạn: chưa xong và dueDate < now
+          if (task.completed) return false;
+          if (!task.dueDate) return false;
+          return new Date(task.dueDate) < now;
+        }
+        if (currentFilterView === 'completed') {
+          // ✅ Công việc hoàn thành: chỉ hiển thị task có completed === true
+          return task.completed === true;
+        }
+        if (currentFilterView === 'project') {
+          return task.projectId === selectedProjectId;
+        }
+        return true;
+      });
+
+      // BƯỚC 3: LỌC THEO TỪ KHÓA TÌM KIẾM (Search Input)
+      if (searchKeyword) {
+        viewFiltered = viewFiltered.filter(task => {
+          const title = (task.title || '').toLowerCase();
+          const desc = (task.description || task.desc || '').toLowerCase();
+          return title.includes(searchKeyword) || desc.includes(searchKeyword);
+        });
+      }
+
+      // BƯỚC 4: LỌC THEO ĐỘ ƯU TIÊN (Filter Dropdown)
+      if (filterPriority && filterPriority !== 'all') {
+        viewFiltered = viewFiltered.filter(task => task.priority === filterPriority);
+      }
+
+      // BƯỚC 5: SẮP XẾP DANH SÁCH (Sort Dropdown)
+      viewFiltered.sort((a, b) => {
+        if (currentSortOption === 'deadline-asc') {
+          const dateA = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+          const dateB = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+          return dateA - dateB;
+        }
+        if (currentSortOption === 'deadline-desc') {
+          const dateA = a.dueDate ? new Date(a.dueDate).getTime() : 0;
+          const dateB = b.dueDate ? new Date(b.dueDate).getTime() : 0;
+          return dateB - dateA;
+        }
+        if (currentSortOption === 'priority-desc') {
+          const priorityWeight = { 'Khẩn cấp': 3, 'Trung bình': 2, 'Thấp': 1 };
+          return (priorityWeight[b.priority] || 0) - (priorityWeight[a.priority] || 0);
+        }
+        if (currentSortOption === 'newest') {
+          const idA = parseInt(String(a.id).replace('task-', ''), 10) || 0;
+          const idB = parseInt(String(b.id).replace('task-', ''), 10) || 0;
+          return idB - idA;
+        }
+        return 0;
+      });
+
+      // BƯỚC 6: PHÂN TRANG (PAGINATION)
+      const totalItems = viewFiltered.length;
+      const totalPages = Math.ceil(totalItems / pageSize) || 1;
+      if (currentPage > totalPages) currentPage = totalPages;
+      if (currentPage < 1) currentPage = 1;
+
+      const startIndex = (currentPage - 1) * pageSize;
+      const paginatedItems = viewFiltered.slice(startIndex, startIndex + pageSize);
+
+      // Render thanh điều khiển phân trang
+      renderPagination(totalItems, totalPages);
+
+      // BƯỚC 7: XỬ LÝ EMPTY STATE
+      if (totalItems === 0) {
+        taskListContainer.innerHTML = '';
+        emptyStateContainer.classList.remove('hidden');
+        return;
+      }
+      emptyStateContainer.classList.add('hidden');
+
+      // BƯỚC 8: RENDER DANH SÁCH THẺ TASK RA GIAO DIỆN
+      taskListContainer.innerHTML = paginatedItems.map(task => {
+        const assignee = TEAM_MEMBERS.find(m => m.id === task.assigneeId) || { name: 'Chưa giao', avatarChar: '?', color: '#94a3b8' };
+        const project = projects.find(p => p.id === task.projectId) || (projects.length > 0 ? projects[0] : { name: 'Chung', color: '#64748b' });
+        const deadline = checkDeadlineUrgency(task.dueDate);
+        const prioConfig = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG['Trung bình'];
+
+        const deadlineBadgeClass = task.completed 
+          ? 'bg-slate-50 text-slate-400 border-slate-200/60 dark:bg-night-800 dark:text-slate-500' 
+          : deadline.badgeClass;
+
+        return `
+          <li class="group bg-white dark:bg-night-900 rounded-2xl border border-sky-100 dark:border-slate-800/90 p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xs hover:shadow-md hover:border-sky-200 dark:hover:border-slate-700 transition-all ${task.completed ? 'bg-slate-50/70 dark:bg-night-950/40 opacity-75' : ''}">
+            
+            <!-- Trái: Nội dung công việc + Tag Dự án -->
+            <div class="flex items-start gap-3 flex-1 min-w-0">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-sm font-bold text-slate-800 dark:text-slate-100 ${task.completed ? 'line-through text-slate-400 dark:text-slate-500' : ''}">
+                    ${escapeHTML(task.title)}
+                  </span>
+                  
+                  <!-- Tag Dự Án -->
+                  <span class="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-night-800 text-slate-600 dark:text-slate-400">
+                    <span class="w-1.5 h-1.5 rounded-full" style="background:${project.color}"></span>
+                    ${escapeHTML(project.name)}
+                  </span>
+                </div>
+
+                ${task.description ? `
+                  <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                    ${escapeHTML(task.description)}
+                  </p>
+                ` : ''}
+              </div>
+            </div>
+
+            <!-- Phải: Assignee Avatar + Deadline + Priority Tag + Nút Sửa Task + NÚT HOÀN THÀNH + Nút Xóa (Yêu cầu 1 & 2) -->
+            <div class="flex items-center gap-2 shrink-0 self-end md:self-center flex-wrap">
+              
+              <!-- Avatar người được giao việc -->
+              <div class="flex items-center gap-1.5 px-2 py-1 rounded-full bg-sky-50 dark:bg-night-800 border border-sky-100 dark:border-slate-700/80" title="Người thực hiện: ${assignee.name}">
+                <span class="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style="background:${assignee.color}">
+                  ${assignee.avatarChar}
+                </span>
+                <span class="text-xs font-semibold text-slate-700 dark:text-slate-200">${assignee.name}</span>
+              </div>
+
+              <!-- Hạn làm (Deadline) -->
+              <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs border ${deadlineBadgeClass}">
+                <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                <span>${deadline.text}</span>
+                ${(!task.completed && deadline.statusLabel) ? `
+                  <span class="ml-1 px-1.5 py-0.2 rounded-md uppercase text-[10px] font-extrabold ${deadline.isOverdue ? 'bg-rose-200 text-rose-800 dark:bg-rose-900 dark:text-rose-200' : 'bg-amber-200 text-amber-800 dark:bg-amber-900 dark:text-amber-200'}">
+                    ${deadline.statusLabel}
+                  </span>
+                ` : ''}
+              </div>
+
+              <!-- Nhãn độ ưu tiên (Priority Badge) -->
+              <div class="text-[11px] font-bold px-2.5 py-1 rounded-xl border ${prioConfig.badgeClass}">
+                ${task.priority}
+              </div>
+
+              <!-- NÚT CHỈNH SỬA CÔNG VIỆC (EDIT TASK - YÊU CẦU 2) -->
+              <button 
+                onclick="openEditTaskModal('${task.id}')"
+                class="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-brand-600 dark:hover:text-sky-400 bg-slate-50 dark:bg-night-800 border border-slate-200/80 dark:border-slate-700/80 hover:border-brand-300 dark:hover:border-sky-500 transition-all cursor-pointer shadow-2xs active:scale-95"
+                title="Chỉnh sửa công việc"
+              >
+                <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
+                <span class="hidden sm:inline">Sửa</span>
+              </button>
+
+              <!-- NÚT BẤM "HOÀN THÀNH" ĐẶT Ở CUỐI HÀNG (YÊU CẦU 1) -->
+              <button 
+                onclick="toggleTaskComplete('${task.id}')"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer ${
+                  task.completed
+                    ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200 dark:bg-emerald-950/80 dark:text-emerald-300'
+                    : 'bg-sky-50 text-brand-600 hover:bg-sky-100 border border-sky-200/80 dark:bg-sky-950/50 dark:text-sky-300 dark:border-sky-800'
+                }"
+                title="${task.completed ? 'Bấm để hoàn tác chưa xong' : 'Bấm để đánh dấu hoàn thành & bắn pháo bông'}"
+              >
+                <i data-lucide="${task.completed ? 'check-circle' : 'check'}" class="w-3.5 h-3.5"></i>
+                <span>${task.completed ? 'Đã xong' : 'Hoàn thành'}</span>
+              </button>
+
+              <!-- Nút xóa công việc -->
+              <button 
+                onclick="deleteTask('${task.id}', this)" 
+                title="Xóa công việc"
+                class="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors cursor-pointer"
+              >
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+              </button>
+            </div>
+
+          </li>
+        `;
+      }).join('');
+
+      if (window.lucide) lucide.createIcons();
+    }
+
+    /* =====================================================================
+     * 9.1 RENDER BỘ NÚT CHUYỂN TRANG (PAGINATION)
+     * ===================================================================== */
+    function renderPagination(totalItems, totalPages) {
+      if (!paginationContainer) return;
+
+      if (totalItems <= pageSize) {
+        paginationContainer.classList.add('hidden');
+        return;
+      }
+      paginationContainer.classList.remove('hidden');
+
+      const start = (currentPage - 1) * pageSize + 1;
+      const end = Math.min(currentPage * pageSize, totalItems);
+      paginationInfo.textContent = `Hiển thị ${start} - ${end} trên tổng số ${totalItems} công việc`;
+
+      let btnHtml = '';
+
+      // Nút Trước
+      btnHtml += `
+        <button 
+          onclick="goToPage(${currentPage - 1})" 
+          ${currentPage === 1 ? 'disabled class="opacity-40 cursor-not-allowed"' : 'class="hover:bg-sky-100 dark:hover:bg-night-800"'} 
+          class="px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 transition-colors"
+        >
+          Trước
+        </button>
+      `;
+
+      // Các nút số trang
+      for (let i = 1; i <= totalPages; i++) {
+        const isCurrent = i === currentPage;
+        btnHtml += `
+          <button 
+            onclick="goToPage(${i})" 
+            class="w-7 h-7 flex items-center justify-center text-xs font-bold rounded-lg transition-all ${
+              isCurrent 
+                ? 'bg-brand-600 text-white shadow-xs' 
+                : 'border border-slate-200 dark:border-slate-700 hover:bg-sky-50 dark:hover:bg-night-800 text-slate-700 dark:text-slate-300'
+            }"
+          >
+            ${i}
+          </button>
+        `;
+      }
+
+      // Nút Sau
+      btnHtml += `
+        <button 
+          onclick="goToPage(${currentPage + 1})" 
+          ${currentPage === totalPages ? 'disabled class="opacity-40 cursor-not-allowed"' : 'class="hover:bg-sky-100 dark:hover:bg-night-800"'} 
+          class="px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 transition-colors"
+        >
+          Sau
+        </button>
+      `;
+
+      paginationButtons.innerHTML = btnHtml;
+    }
+
+    /* =====================================================================
+     * 10. ĐỒNG HỒ THỜI GIAN THỰC & TỰ ĐỘNG CẬP NHẬT DEADLINE REAL-TIME
+     * ===================================================================== */
+    function updateRealtimeClock() {
+      const now = new Date();
+      const h = String(now.getHours()).padStart(2, '0');
+      const m = String(now.getMinutes()).padStart(2, '0');
+      const s = String(now.getSeconds()).padStart(2, '0');
+      realtimeClockEl.textContent = `${h}:${m}:${s}`;
+    }
+    setInterval(updateRealtimeClock, 1000);
+    updateRealtimeClock();
+
+    // Tự động kiểm tra và cập nhật trạng thái Deadline (Gấp / Quá hạn) mỗi 30 giây theo thời gian thực
+    setInterval(() => {
+      renderTaskList();
+    }, 30000);
+
+    // Đóng dropdown khi click bên ngoài
+    document.addEventListener('click', (e) => {
+      const userBox = document.getElementById('userSwitchBtn');
+      if (userBox && !userBox.contains(e.target) && !userDropdownMenu.contains(e.target)) {
+        userDropdownMenu.classList.add('hidden');
+      }
+
+      const prioBtn = document.getElementById('priorityDropdownBtn');
+      if (prioBtn && !prioBtn.contains(e.target) && !priorityOptionsList.contains(e.target)) {
+        priorityOptionsList.classList.add('hidden');
+      }
+    });
+
+    /* =====================================================================
+     * 11. KHỞI CHẠY ỨNG DỤNG LẦN ĐẦU (INITIALIZATION)
+     * ===================================================================== */
+    initDarkMode();
+    updateUserCardUI();
+    renderTeamAssigneeSelect();
+    renderProjectList();
+    setDefaultDueDate();
+    loadTasksFromLocalStorage();
+    setFilterView('all');
+  </script>
+</body>
+</html>
